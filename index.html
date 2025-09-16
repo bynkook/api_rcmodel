@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>RC Section Smart Designer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121735; --accent:#7c5cff; --text:#e6e8ff; --muted:#9aa0c3;
+    --ring: rgba(124,92,255,.35); --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+    --line:#a6b3ff; --dim:#9aa0c3; --steel:#7c5cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 800px at 70% -10%, #1a2250 0%, #0b1020 60%);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Arial}
+  .wrap{max-width:1200px;margin:28px auto;padding:0 20px}
+  h1{font-size:22px;margin:0 0 16px;font-weight:700;letter-spacing:.3px}
+  .grid{display:grid;gap:16px}
+  .two{grid-template-columns:1fr 1fr}
+  .card{background:linear-gradient(180deg,#141a3a,#0f1330);border:1px solid #1f2760;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .head{font-weight:600;margin-bottom:8px;opacity:.95}
+  .sub{font-size:12px;color:var(--muted);margin:0 0 12px}
+  .field{margin-bottom:10px}
+  .field > .lbl{display:block;font-size:12px;color:var(--muted);margin:0 0 6px 4px}
+  .row{display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center}
+  input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #2b3575;background:#0c1230;color:var(--text);outline:none}
+  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+  .unit{color:var(--muted);text-align:right}
+  .btns{display:flex;gap:12px;margin-top:8px}
+  button{padding:12px 18px;border-radius:12px;border:1px solid #3b48a3;background:linear-gradient(180deg,#2a2f6d,#1c2258);color:#fff;cursor:pointer;font-weight:600;letter-spacing:.3px}
+  button:hover{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+  .ghost{background:transparent;border-color:#2b3575}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#1a2250;border:1px solid #2b3575;color:#9aa0c3;font-size:12px}
+  /* Mu 경고 강조용 */
+  .input-alert{
+   background:#2a0b0b !important;
+    border-color:#7f1d1d !important;
+    box-shadow:0 0 0 4px rgba(239,68,68,.25) !important; /* --err 계열 */
+  }
+  .msg{
+    border-radius:14px;border:1px solid #2b3575;background:#0b1030;
+    margin-top:14px;padding:0;overflow:hidden;
+    /* 박스는 내용에 맞춰 커지되, 본문 스크롤 상한은 vh로 제한 */
+  }
+  .msg.ok   { border-color:#22c55e66; box-shadow:0 0 0 3px #22c55e22 inset; }
+  .msg.warn { border-color:#f59e0b66; box-shadow:0 0 0 3px #f59e0b22 inset; }
+  .msg.err  { border-color:#ef444466; box-shadow:0 0 0 3px #ef444422 inset; }
+  .msg-header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1f2760;background:#0e1436}
+  .msg-badge{font-size:12px;padding:2px 8px;border-radius:999px;background:#1a2250;color:#9aa0c3;border:1px solid #2b3575}
+  .msg-body{
+    padding:12px 14px;font:13px/1.5 ui-monospace,Consolas,monaco;white-space:pre-wrap;
+    max-height:45vh;             /* 섹션 스케치와 충돌하지 않도록 여유 있는 상한 */
+    overflow:auto;               /* 넘치면 내부 스크롤 */
+  }
+
+  /* 화면이 낮을 때 상한을 더 줄여 충돌 방지 */
+  @media (max-height: 800px){
+    .msg-body{ max-height:38vh; }
+  }
+  @media (max-height: 640px){
+    .msg-body{ max-height:32vh; }
+  }
+
+  .canvas-card{display:grid;grid-template-rows:auto 1fr auto;gap:10px;min-height:520px}
+  canvas{width:100%;height:420px;border-radius:12px;border:1px solid #243079;background:#0b1030}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>RC Section Designer V1.0 (small size model test)</h1>
+  <div class="grid two">
+    <!-- LEFT: Inputs + Outputs -->
+    <div class="card">
+      <div class="head">User Input</div>
+      <div class="sub">재료/형상/하중을 입력</div>
+
+      <div class="field">
+        <span class="lbl">fck</span>
+        <div class="row"><input id="fck" type="number" step="any" placeholder="fck"><div class="unit">(MPa)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">fy</span>
+        <div class="row"><input id="fy"  type="number" step="any" placeholder="fy"><div class="unit">(MPa)</div></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">단면 형상</span>
+        <div class="row">
+          <select id="type"><option value="r" selected>Rectangular</option><option value="t" disabled>T-shape</option></select>
+          <div class="unit"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">width</span>
+        <div class="row"><input id="width"  type="number" step="any" placeholder="width"><div class="unit">(mm)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">height</span>
+        <div class="row"><input id="height" type="number" step="any" placeholder="height"><div class="unit">(mm)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Mu</span>
+        <div class="row"><input id="Mu" type="number" step="any" placeholder="Mu"><div class="unit">(kN·m)</div></div>
+      </div>
+
+      <div class="btns">
+        <button id="recalc" type="button">RECALC</button>
+        <button id="reset"  type="button" class="ghost">RESET</button>
+        <span class="row" id="hint">Ready</span>
+      </div>
+
+      <div class="head" style="margin-top:16px">Model Output</div>
+      <div class="sub">예측값</div>
+      <div class="field">
+        <span class="lbl">d</span>
+        <div class="row"><input id="out_d"  type="number" step="any" placeholder="d" readonly><div class="unit">(mm)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Ig</span>
+        <div class="row"><input id="out_Ig" type="number" step="any" placeholder="Ig" readonly><div class="unit">(cm⁴)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">As_required</span>
+        <div class="row"><input id="out_As" type="number" step="any" placeholder="As_required" readonly><div class="unit">(cm²)</div></div>
+      </div>
+      <div class="field">
+        <span class="lbl">phi_Mn</span>
+        <div class="row"><input id="out_phi_Mn" type="number" step="any" placeholder="phi_Mn" readonly><div class="unit">(kN·m)</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Canvas + Debug -->
+    <div class="card canvas-card">
+      <div class="head">Section Sketch</div>
+      <canvas id="sketch" width="560" height="420"></canvas>
+
+      <div class="msg" id="msg">
+        <div class="msg-header">
+          <span class="msg-badge" id="msgLevel">DEBUG</span>
+          <span id="msgTitle">message window</span>
+          <span style="margin-left:auto" class="msg-badge" id="msgSize">0 lines</span>
+        </div>
+        <div class="msg-body" id="msgBody">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === Mu 허용 TOL ===
+const TOL_MU = 0.05;  // Mu > (1+TOL_MU)*phi_Mn 이면 경고
+
+// 기본값 사전
+const defaults = {
+  fck: 27,
+  fy: 400,
+  type: 'r',
+  width: 800,
+  height: 1000,
+  Mu: 2000
+};
+
+// 기본값 세팅 함수
+function setDefaults() {
+  for (const [key, value] of Object.entries(defaults)) {
+    const el = document.getElementById(key);
+    if (el) el.value = value;
+  }
+}
+
+// 페이지 로드 시 기본값 세팅
+window.addEventListener("DOMContentLoaded", () => {
+  setDefaults();
+});
+
+const API = (location.origin.includes(":8100") ? location.origin : "http://127.0.0.1:8100");
+
+function num(id){ const v=document.getElementById(id).value; return v===""?null:Number(v); }
+// UI 입력값 가져오기
+function uiPayload(){
+  return { fck:num("fck"), fy:num("fy"), type:document.getElementById("type").value,
+           width:num("width"), height:num("height"), Mu:num("Mu") };
+}
+function setOut(o){
+  // HTML id 에 출력값 연결
+  if(typeof o.d==="number")  document.getElementById("out_d").value  = o.d.toFixed(4);
+  if(typeof o.Ig==="number") document.getElementById("out_Ig").value = o.Ig.toFixed(4);
+  if(typeof o.As_required==="number") document.getElementById("out_As").value = o.As_required.toFixed(4);
+  if(typeof o.phi_Mn==="number") document.getElementById("out_phi_Mn").value = o.phi_Mn.toFixed(4);
+}
+function clearOutAndCanvas(){
+  ["out_d","out_Ig","out_As","out_phi_Mn"].forEach(id=>document.getElementById(id).value="");
+  const c=document.getElementById("sketch"); c.getContext("2d").clearRect(0,0,c.width,c.height);
+}
+function clearMuAlert(){
+  const muEl = document.getElementById("Mu");
+  muEl.classList.remove("input-alert");
+}
+function setMsg(text, level){
+  const box = document.getElementById("msg");
+  const body = document.getElementById("msgBody");
+  const badge = document.getElementById("msgLevel");
+  const title = document.getElementById("msgTitle");
+  const size = document.getElementById("msgSize");
+
+  body.textContent = text || "";
+  const lines = (text||"").split(/\r?\n/).length;
+  size.textContent = `${lines} line${lines>1?"s":""}`;
+  box.classList.remove("ok","warn","err");
+  let label="DEBUG";
+  if(level==="ok"){ box.classList.add("ok"); label="OK"; }
+  else if(level==="warn"){ box.classList.add("warn"); label="WARN"; }
+  else if(level==="err"){ box.classList.add("err"); label="ERROR"; }
+  badge.textContent = label;
+  title.textContent = (label==="OK") ? "Prediction" : "Message";
+
+  /* 헤더는 고정, 본문만 스크롤 최하단으로 */
+  body.scrollTop = body.scrollHeight;
+}
+
+/* ===== Canvas drawing ===== */
+function drawSection(inputs, preds){
+  const c = document.getElementById("sketch");
+  const ctx = c.getContext("2d");
+  const W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const border = "#2b3575", face = "#0e1436";
+  const dim = getComputedStyle(document.documentElement).getPropertyValue('--dim') || "#9aa0c3";
+  const line = getComputedStyle(document.documentElement).getPropertyValue('--line') || "#a6b3ff";
+  const steel = getComputedStyle(document.documentElement).getPropertyValue('--steel') || "#7c5cff";
+
+  const w_mm = Number(inputs.width)||0;
+  const h_mm = Number(inputs.height)||0;
+  const d_mm = Number(preds?.d);
+  const as_cm2 = Number(preds?.As_required);
+
+  if(!(w_mm>0 && h_mm>0 && Number.isFinite(d_mm) && d_mm>0 && Number.isFinite(as_cm2) && as_cm2>0)){
+    // 요구 3: 입력 누락/오류 시 아무 것도 그리지 않음(초기화 상태 유지)
+    return;
+  }
+
+  // 중앙 배치: 여백만 고려해 정중앙에 위치
+  const margin = 40;
+  const availW = W - margin*2;
+  const availH = H - margin*2;        // ← 상단/하단 여백만 고려. 별도 공간 예약 없음.
+  const s = Math.min(availW / w_mm, availH / h_mm);
+
+  const rectW = w_mm * s;
+  const rectH = h_mm * s;
+  const originX = (W - rectW)/2;
+  const originY = (H - rectH)/2;      // ← 정확히 세로 중심
+
+  // 단면
+  ctx.fillStyle = face;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(originX, originY, rectW, rectH);
+  ctx.fill(); ctx.stroke();
+
+  // 폭 치수선: 단면 윗면에 위치(요구 2)
+  ctx.strokeStyle = dim; ctx.fillStyle=dim; ctx.lineWidth=1.2;
+  const yDimTop = originY - 18;        // 윗면 위쪽으로 치수선
+  drawDimWidthTop(ctx, originX, originY, rectW, yDimTop, `${w_mm.toFixed(1)} mm`);
+
+  // 높이 치수선: 우측(기존 유지)
+  const xDim = originX + rectW + 18;
+  drawDimHeightRight(ctx, originX, originY, rectW, rectH, xDim, `${h_mm.toFixed(1)} mm`);
+
+  // 주철근
+  let dia_px = Math.max(6, Math.sqrt(4*as_cm2/Math.PI) * 10.0 * s); // cm²→mm→px
+  const r = dia_px/2, cx = originX + rectW/2;
+  let cy = originY + (d_mm * s);
+  cy = Math.min(cy, originY + rectH - dia_px - 2);
+  //cy = Math.min(Math.max(cy, originY + r + 2), originY + rectH - r - 2);
+  //cy = Math.min(cy, originY + d_mm * s - d_mm);
+
+  ctx.beginPath();
+  ctx.strokeStyle = steel; ctx.fillStyle = "#221a70"; ctx.lineWidth = 2;
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // As_required 표기
+  ctx.strokeStyle = line; ctx.fillStyle = line; ctx.lineWidth = 1.2;
+  // ctx.beginPath(); ctx.moveTo(cx + 5, cy - r - 5); ctx.lineTo(cx + r + 5, cy - r - 15); ctx.stroke();
+  ctx.font = "12px ui-monospace,Consolas";
+  ctx.fillText(`As=${as_cm2.toFixed(3)} cm²`, cx + 5, cy - r - 10);
+
+  // helpers
+  function drawDimWidthTop(ctx, x0, y0, w, yDim, label){
+    const ext = 10;
+    // 윗면에서 위로 보조선
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);       ctx.lineTo(x0, y0 - ext);
+    ctx.moveTo(x0+w, y0);     ctx.lineTo(x0+w, y0 - ext);
+    ctx.stroke();
+    // 치수선(윗면 위쪽)
+    ctx.beginPath(); ctx.moveTo(x0, yDim); ctx.lineTo(x0+w, yDim); ctx.stroke();
+    // 화살표
+    arrowH(ctx, x0, yDim, +1); arrowH(ctx, x0+w, yDim, -1);
+    // 라벨
+    ctx.font = "12px ui-monospace,Consolas"; ctx.textAlign="center";
+    ctx.fillText(label, x0 + w/2, yDim - 6);
+  }
+  function drawDimHeightRight(ctx, x0, y0, w, h, xDim, label){
+    const ext = 10;
+    // 우측에서 오른쪽으로 보조선
+    ctx.beginPath();
+    ctx.moveTo(x0+w, y0+h); ctx.lineTo(x0+w+ext, y0+h);
+    ctx.moveTo(x0+w, y0);   ctx.lineTo(x0+w+ext, y0);
+    ctx.stroke();
+    // 치수선
+    ctx.beginPath(); ctx.moveTo(xDim, y0+h); ctx.lineTo(xDim, y0); ctx.stroke();
+    // 화살표
+    arrowV(ctx, xDim, y0+h, -1); arrowV(ctx, xDim, y0, +1);
+    // 라벨(세로 회전)
+    ctx.save(); ctx.translate(xDim+12, y0 + h/2); ctx.rotate(-Math.PI/2);
+    ctx.font = "12px ui-monospace,Consolas"; ctx.textAlign="center";
+    ctx.fillText(label, 0, 0); ctx.restore();
+  }
+  function arrowH(ctx,x,y,dir){ const s=6*dir;
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+s,y-4); ctx.lineTo(x+s,y+4);
+    ctx.closePath(); ctx.fillStyle=dim; ctx.fill();
+  }
+  function arrowV(ctx,x,y,dir){ const s=6*dir;
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-4,y+s); ctx.lineTo(x+4,y+s);
+    ctx.closePath(); ctx.fillStyle=dim; ctx.fill();
+  }
+}
+
+/* ===== Predict flow (fixed) ===== */
+async function predict(){
+  const p = uiPayload();
+  if([p.fck,p.fy,p.width,p.height,p.Mu].some(v=>v===null)){
+    clearOutAndCanvas();
+    setMsg("WARN: 모든 입력을 채워주세요.\nUser Input:\n"+JSON.stringify(p,null,2),"warn");
+    return;
+  }
+  clearMuAlert();  // 새 계산 전 초기화
+  document.getElementById("hint").textContent="Calculating...";
+  try{
+    const r = await fetch(API + "/predict_multi", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(p)
+    });
+    // 예측값 api 에서 가져오기
+	const data = await r.json();
+
+    if(data.error){
+      clearOutAndCanvas();
+      setMsg("ERR: API error\n"+JSON.stringify(data,null,2),"err");
+      document.getElementById("hint").textContent="Error";
+      return;
+    }
+	
+	// 예측값 저장
+    const preds = data.predictions || {};
+
+    // 1) 예측값 유효성 판단
+    const hasBd   = Number.isFinite(preds.bd);
+    const hasRho = Number.isFinite(preds.rho);
+    const canDraw = (p.width>0 && p.height>0 && hasBd && hasRho);
+
+    // 2) 출력 먼저 반영 (Ig = Sm * W * H / 2)
+    setOut({
+      d: preds.bd*100/p.width,	             // 출력 단위 변환(cm->mm)
+      Ig: preds.Sm*p.width*p.height*0.5/100, // Ig = cm4 로 출력
+      As_required: preds.rho*preds.bd,       // bd = cm2 -> As = cm2
+      phi_Mn: preds.phi_Mn
+    });
+    
+    // 3) 캔버스는 가능한 경우에만 그림. 예측값이 있으면 초기화 금지
+    if(canDraw){
+      drawSection({width:p.width, height:p.height}, { d:preds.bd*100/p.width, As_required:preds.rho*preds.bd });
+    }else{
+      // 예측 불충분하면 캔버스만 초기화(출력 필드는 유지)
+      const c = document.getElementById("sketch");
+      c.getContext("2d").clearRect(0,0,c.width,c.height);
+    }
+
+    // 4) DOM에서 사용자 입력 필드(id)만 수집해 누락 판정 (readonly 출력 필드 제외)
+    const inputIds = Array.from(document.querySelectorAll('input:not([readonly])')).map(el => el.id);
+    const miss = inputIds.filter(id => {
+      const v = p[id];
+      if (v == null || Number.isNaN(v)) return true;
+      // 양수가 필요한 항목에 한해 추가 제약
+      if (id === "width" || id === "height" ) return !(v > 0);
+      if (id === "Mu") return !(v >= 0);
+      return false;
+    });
+
+    let dbg = "User Input:\n"+JSON.stringify(p,null,2)+"\n\n";
+    dbg += "Predictions:\n"+JSON.stringify(preds,null,2)+"\n";
+    if(miss.length) dbg += "\nMissing Inputs: " + miss.join(", ");
+
+    // 5) Mu 초과 체크
+    let level = (canDraw ? "ok" : (miss.length ? "warn" : "ok"));
+    const phi_Mn = Number(preds["phi_Mn"]) ? Number(preds["phi_Mn"]) : NaN;
+    if (Number.isFinite(phi_Mn) && Number.isFinite(p.Mu)) {
+      const rel = Math.abs(p.Mu - phi_Mn) / Math.abs(phi_Mn);
+      if (p.Mu > phi_Mn){
+	    // 강도가 부족한 경우
+        if (rel > TOL_MU){
+          // TOL 초과일 경우 NG
+		  dbg += "\nWARN: 단면의 휨강도가 공칭강도를 초과하므로 단면 크기를 증가시켜야 합니다.";
+          level = "warn";
+          const muEl = document.getElementById("Mu");
+          muEl.classList.add("input-alert");
+          muEl.focus();
+        }
+        else if (rel <= TOL_MU){
+		  // 강도가 부족하지만 TOL 이내일 경우 say OK
+		  dbg += "\n(OK) phi_Mn ~ Mu ";
+        }
+      }
+      else if (p.Mu <= phi_Mn || rel <= TOL_MU){
+        // 강도가 외력보다 크거나 아니면 TOL 이내일 경우
+		dbg += "\n(OK) phi_Mn > Mu ";
+      }
+      else {
+        // phi_Mn 값 자체 오류
+        dbg += "\nERR: phi_Mn is invalid"
+        level = "err";
+      }
+    }
+  setMsg(dbg, level);
+    document.getElementById("hint").textContent = (level==="ok" ? "Done" : "Warn");
+  }
+  catch(e){
+    clearOutAndCanvas();
+    setMsg("ERR: fetch failed\n"+e,"err");
+    document.getElementById("hint").textContent="Error";
+  }
+}
+
+/* ===== Wire UI ===== */
+
+// 메시지 창 초기화 유틸
+function clearMsg(){
+  const box = document.getElementById("msg");
+  const body = document.getElementById("msgBody");
+  const lvl  = document.getElementById("msgLevel");
+  const ttl  = document.getElementById("msgTitle");
+  const siz  = document.getElementById("msgSize");
+  if (body) body.textContent = "";
+  if (body) body.scrollTop = 0;
+  if (box)  { box.classList.remove("ok","warn","err"); }
+  if (lvl)  lvl.textContent = "DEBUG";
+  if (ttl)  ttl.textContent = "message window";
+  if (siz)  siz.textContent = "0 lines";  
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  document.getElementById("recalc").addEventListener("click", ()=>{ predict(); });
+  document.getElementById("reset").addEventListener("click", ()=>{
+    setDefaults();           // 기본값 재설정
+    clearOutAndCanvas();     // 출력 3개 + 캔버스 동시 초기화
+    clearMsg();              // 메시지 창 완전 초기화
+    clearMuAlert();          // Mu 경고 하이라이트 해제
+    document.getElementById("hint").textContent="Ready";
+    logDebug("[UI] Form reset to defaults");
+    document.getElementById("hint").textContent="Ready";
+  });
+});
+</script>
+</body>
+</html>
