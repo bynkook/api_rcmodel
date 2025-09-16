@@ -22,7 +22,7 @@ api.py — RC(철근콘크리트) 단면 예측 API (FastAPI)
 주의
 - 이 API는 CORS 허용으로 프론트엔드 정적 파일(예: file:// 또는 다른 포트)에서 호출 가능.
 - Pydantic v2 기준(BaseModel.model_dump 사용).
-- 모델 훈련 및 예측값은 Sm (Ig 는 출력할때 계산하여 브라우저에 보여주기만)
+- 모델 훈련 및 예측값은 Sm (Ig 는 출력시 계산하여 브라우저에 표시만)
 """
 
 import os
@@ -36,8 +36,8 @@ from typing import Dict, Any, List
 
 # === 모델 번들 경로 설정 ===
 # BUNDLE_PATH = os.getenv("XGB_BUNDLE", "xgb_bundle.joblib")
-# BUNDLE_PATH = os.getenv("SVR_BUNDLE", "svr_bundle.joblib")
 BUNDLE_PATH = os.getenv("STACK_BUNDLE", "stack_bundle_1.joblib")
+# BUNDLE_PATH = os.getenv("STACK_BUNDLE", "stack_bundle_2.joblib")
 
 # === FastAPI 앱 및 CORS 설정 ===
 app = FastAPI(title="RC API")
@@ -165,5 +165,4 @@ def predict_multi(req: PredictReq):
     return {
         "predictions": results,
         "echo": payload_ui,
-
     }
